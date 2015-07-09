@@ -4,7 +4,6 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
@@ -14,6 +13,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ImageView;
+import android.widget.SearchView;
 import android.widget.TextView;
 
 import com.example.thewizard.cjuliaol.sounddroid.com.example.thewizard.cjuliaol.sounddroid.soundcloud.SoundCloud;
@@ -22,15 +22,16 @@ import com.example.thewizard.cjuliaol.sounddroid.com.example.thewizard.cjuliaol.
 import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import retrofit.Callback;
-import retrofit.RestAdapter;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SearchView.OnQueryTextListener {
 
     private static final String TAG = "MainActivity";
     private TracksAdapter mAdapter;
@@ -39,6 +40,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView mSelectedTitle;
     private ImageView mSelectedThumbnail;
     private MediaPlayer mMediaPlayer;
+    private ImageView mPlayerStateButton;
+    private SearchView mSearchView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,13 +53,30 @@ public class MainActivity extends AppCompatActivity {
         mMediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mp) {
-                mp.start();
+                toggleSongState();
+            }
+        });
+
+        // when finish to play the song
+        mMediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                mPlayerStateButton.setImageResource(R.drawable.ic_play);
             }
         });
 
         mToolbar = (Toolbar) findViewById(R.id.player_toolbar);
         mSelectedTitle = (TextView) findViewById(R.id.selected_title);
         mSelectedThumbnail = (ImageView) findViewById(R.id.selected_thumbnail);
+        mPlayerStateButton = (ImageView) findViewById(R.id.player_state);
+        mPlayerStateButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                toggleSongState();
+
+            }
+        });
 
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.songs_list);
 
@@ -70,8 +90,13 @@ public class MainActivity extends AppCompatActivity {
                 Track selectedTrack = mTracks.get(position);
                 mSelectedTitle.setText(selectedTrack.getTitle());
                 Picasso.with(MainActivity.this).load(selectedTrack.getAvatarURL()).into(mSelectedThumbnail);
+
+                if (mMediaPlayer.isPlaying()) {
+                    mMediaPlayer.stop();
+                    mMediaPlayer.reset();
+                }
                 try {
-                    mMediaPlayer.setDataSource(selectedTrack.getStreamURL()+"?client_id="+SoundCloudService.CLIENT_ID);
+                    mMediaPlayer.setDataSource(selectedTrack.getStreamURL() + "?client_id=" + SoundCloudService.CLIENT_ID);
                     mMediaPlayer.prepareAsync();
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -81,15 +106,14 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(mAdapter);
 
         SoundCloudService service = SoundCloud.getService();
-        service.searchSongs("aerosmith", new Callback<List<Track>>() {
+        String recent = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date());
+        service.searchRecentSongs(recent, new Callback<List<Track>>() {
             @Override
             public void success(List<Track> tracks, Response response) {
-
                 for (int i = 0; i < tracks.size(); i++) {
-                    mTracks.clear();
-                    mTracks.addAll(tracks);
-                    mAdapter.notifyDataSetChanged();
+                     updateTracks(tracks);
                 }
+
             }
 
             @Override
@@ -99,19 +123,73 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-        //Log.d(TAG,"Title is "+ track.getTitle());
-        //Log.d(TAG,"Stream URL is "+ track.getStreamURL());
-        //Log.d(TAG,"ID is "+ track.getID());
     }
 
-    private String trackJSON() {
-        return "{\"kind\":\"track\",\"id\":13158665,\"created_at\":\"2011/04/06 15:37:43 +0000\",\"user_id\":3699101,\"duration\":18109,\"commentable\":true,\"state\":\"finished\",\"original_content_size\":201483,\"last_modified\":\"2013/02/18 19:18:11 +0000\",\"sharing\":\"public\",\"tag_list\":\"soundcloud:source=iphone-record\",\"permalink\":\"munching-at-tiannas-house\",\"streamable\":true,\"embeddable_by\":\"all\",\"downloadable\":false,\"purchase_url\":null,\"label_id\":null,\"purchase_title\":null,\"genre\":null,\"title\":\"Munching at Tiannas house\",\"description\":null,\"label_name\":null,\"release\":null,\"track_type\":\"recording\",\"key_signature\":null,\"isrc\":null,\"video_url\":null,\"bpm\":null,\"release_year\":null,\"release_month\":null,\"release_day\":null,\"original_format\":\"m4a\",\"license\":\"all-rights-reserved\",\"uri\":\"https://api.soundcloud.com/tracks/13158665\",\"user\":{\"id\":3699101,\"kind\":\"user\",\"permalink\":\"alex-stevenson\",\"username\":\"Alex Stevenson\",\"last_modified\":\"2011/06/13 23:58:44 +0000\",\"uri\":\"https://api.soundcloud.com/users/3699101\",\"permalink_url\":\"http://soundcloud.com/alex-stevenson\",\"avatar_url\":\"https://i1.sndcdn.com/avatars-000004193858-jnf2pd-large.jpg\"},\"created_with\":{\"id\":124,\"kind\":\"app\",\"name\":\"SoundCloud iOS\",\"uri\":\"https://api.soundcloud.com/apps/124\",\"permalink_url\":\"http://soundcloud.com/apps/iphone\",\"external_url\":\"http://itunes.com/app/soundcloud\"},\"permalink_url\":\"http://soundcloud.com/alex-stevenson/munching-at-tiannas-house\",\"artwork_url\":null,\"waveform_url\":\"https://w1.sndcdn.com/fxguEjG4ax6B_m.png\",\"stream_url\":\"https://api.soundcloud.com/tracks/13158665/stream\",\"playback_count\":6085,\"download_count\":134,\"favoritings_count\":2,\"comment_count\":3,\"attachments_uri\":\"https://api.soundcloud.com/tracks/13158665/attachments\",\"policy\":\"ALLOW\",\"monetization_model\":\"NOT_APPLICABLE\"}";
+    private void toggleSongState() {
+        if (mMediaPlayer.isPlaying()) {
+            mMediaPlayer.pause();
+            mPlayerStateButton.setImageResource(R.drawable.ic_play);
+        } else {
+            mMediaPlayer.start();
+            mPlayerStateButton.setImageResource(R.drawable.ic_pause);
+        }
+    }
+
+    // When Activity is done
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mMediaPlayer != null) {
+
+            if (mMediaPlayer.isPlaying()) {
+                mMediaPlayer.stop();
+            }
+            mMediaPlayer.release();
+            mMediaPlayer = null;
+
+        }
+    }
+
+    // Implementing SearchView.OnQueryTextListener
+    @Override
+    public boolean onQueryTextSubmit(String query) {
+
+        //Log.d(TAG,"query text");
+        SoundCloud.getService().searchSongs(query, new Callback<List<Track>>() {
+            @Override
+            public void success(List<Track> tracks, Response response) {
+                updateTracks(tracks);
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+
+            }
+        });
+
+        return true;
+    }
+
+     // Implementing SearchView.OnQueryTextListener
+    @Override
+    public boolean onQueryTextChange(String newText) {
+        return false;
+    }
+
+    private void updateTracks(List<Track> tracks) {
+        mTracks.clear();
+        mTracks.addAll(tracks);
+        mAdapter.notifyDataSetChanged();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
+
+        mSearchView = (SearchView) menu.findItem(R.id.search_view).getActionView();
+        mSearchView.setOnQueryTextListener(this);
+        
         return true;
     }
 
@@ -123,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.search_view) {
             return true;
         }
 
