@@ -2,12 +2,12 @@ package com.example.thewizard.cjuliaol.sounddroid;
 
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
     private MediaPlayer mMediaPlayer;
     private ImageView mPlayerStateButton;
     private SearchView mSearchView;
+    private List<Track> mPreviousTracks;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,7 +190,20 @@ public class MainActivity extends AppCompatActivity implements SearchView.OnQuer
 
         mSearchView = (SearchView) menu.findItem(R.id.search_view).getActionView();
         mSearchView.setOnQueryTextListener(this);
-        
+        // When you go back from the SearchView must be in the same original track's list
+        MenuItemCompat.setOnActionExpandListener(menu.findItem(R.id.search_view), new MenuItemCompat.OnActionExpandListener() {
+            @Override
+            public boolean onMenuItemActionExpand(MenuItem item) {
+                mPreviousTracks = new ArrayList<Track>(mTracks);
+                return true;
+            }
+
+            @Override
+            public boolean onMenuItemActionCollapse(MenuItem item) {
+                updateTracks(mPreviousTracks);
+                return true;
+            }
+        });
         return true;
     }
 
